@@ -61,7 +61,7 @@ log_debug "Total de pools encontrados na API: $DATA_COUNT"
 MIN_LIQUIDITY=10000
 MIN_VOLUME_24H=5000
 MIN_APR_24H=5
-MIN_APR_DECIMAL="$(awk "BEGIN {print $MIN_APR_24H / 100}")"
+LC_NUMERIC=C MIN_APR_DECIMAL="$(awk "BEGIN {print $MIN_APR_24H / 100} | tr ',' '.')")"
 
 log_debug "Filtrando pools com Liquidez >= USD $MIN_LIQUIDITY, Volume 24h >= USD $MIN_VOLUME_24H e APR 24h >= $MIN_APR_24H%..."
 
