@@ -70,22 +70,7 @@ echo " Pool                | Liquidez (USD) | Volume 24h (USD) | APR 24h (%) | F
 echo "--------------------------------------------------------------------------------------------------------------"
 
 FILTERED_POOLS="$(
-    jq -r --argjson min_liq "$MIN_LIQUIDITY" \
-    --argjson min_vol "$MIN_VOLUME_24H" \
-    --argjson min_apr "$MIN_APR_DECIMAL" \
-    '.data[] |
-    select(
-        (.tvl // 0) >= $min_liq and
-        (.volume24h // 0) >= $min_vol and
-        ((.day.apr // 0) * 100) >= $min_apr
-    ) |
-    [ .marketName,
-      (.tvl // 0),
-      (.volume24h // 0),
-      ((.day.apr // 0) * 100),
-      (.fee24h // 0),
-      .poolId ] |
-    join("|")' \
+    jq '.data[:5]' \
        "$TEMP_FILE"
 )"
 
