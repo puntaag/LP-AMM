@@ -58,9 +58,9 @@ fi
 log_debug "Total de pools encontrados na API: $DATA_COUNT"
 
 # Parâmetros de filtro
-MIN_LIQUIDITY=10000
-MIN_VOLUME_24H=5000
-MIN_APR_24H=5
+MIN_LIQUIDITY=0.001
+MIN_VOLUME_24H=0
+MIN_APR_24H=0
 LC_NUMERIC=C MIN_APR_DECIMAL="$(awk "BEGIN {print $MIN_APR_24H / 100}")"
 
 log_debug "Filtrando pools com Liquidez >= USD $MIN_LIQUIDITY, Volume 24h >= USD $MIN_VOLUME_24H e APR 24h >= $MIN_APR_24H%..."
@@ -70,7 +70,22 @@ echo " Pool                | Liquidez (USD) | Volume 24h (USD) | APR 24h (%) | F
 echo "--------------------------------------------------------------------------------------------------------------"
 
 FILTERED_POOLS="$(
-    jq '.data[:5]' \
+    jq -r --argjson min_liq "$MIN_LIQUIDITY" \
+    --argjson min_vol "$MIN_VOLUME_24H" \
+    --argjson min_apr "$MIN_APR_DECIMAL" \
+    '.data[] |
+    select(
+        (.tvl // 0) >= $min_liq and
+        (.day.volume // 0) >= $min_vol and
+        ((.day.apr // 0) * 100) >= $min_apr
+    ) |
+    [ (.marketName // "N/A"),
+      (.tvl // 0),
+      (.day.volume // 0),
+      ((.day.apr // 0) * 100),
+      (.day.volumeFee // 0),
+      (.id // "N/A") ] |
+    join("|")' \
        "$TEMP_FILE"
 )"
 
