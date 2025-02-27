@@ -93,20 +93,20 @@ fi
 
 log_debug "Pools filtrados encontrados. Exibindo resultados..."
 
-echo "$FILTERED_POOLS" \
-    | sort -t'|' -k5 -nr \  # Ordena por Fee 24h (padrão)
-    | while IFS='|' read -r name tvl volume24h apr24h fee24h pool_id; do
-        tvl_formatted="$(format_number "$tvl")"
-        volume24h_formatted="$(format_number "$volume24h")"
-        fee24h_formatted="$(format_number "$fee24h")"
-        apr24h_formatted="$(printf "%.2f" "$apr24h")"
-        printf "%-20s | %15s | %15s | %10s | %15s | %-40s\n" \
-               "$name" \
-               "$tvl_formatted" \
-               "$volume24h_formatted" \
-               "$apr24h_formatted" \
-               "$fee24h_formatted" \
-               "$pool_id"
-    done
+echo "$FILTERED_POOLS" | sort -t'|' -k5,5nr | while IFS='|' read -r name tvl volume24h apr24h fee24h pool_id; do
+    tvl_formatted="$(format_number "$tvl")"
+    volume24h_formatted="$(format_number "$volume24h")"
+    fee24h_formatted="$(format_number "$fee24h")"
+    apr24h_formatted="$(printf "%.2f" "$apr24h")"
 
-echo "---------------
+    printf "%-20s | %15s | %15s | %10s | %15s | %-40s\n" \
+           "$name" \
+           "$tvl_formatted" \
+           "$volume24h_formatted" \
+           "$apr24h_formatted" \
+           "$fee24h_formatted" \
+           "$pool_id"
+done
+
+echo "--------------------------------------------------------------------------------------------------------------"
+log_debug "Script concluído em $(date)"
