@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
 
 # Script para listar pools de liquidez da Raydium (AMM V3) com dados detalhados.
-# Requisitos: curl e jq devem estar instalados.
-#
-# Para ativar modo de depuração completo, execute:
-#   DEBUG=true ./raydium_ammv3_pools.sh
-#
 
-# Ativar modo de depuração opcional (DEBUG=true)
+# Ativar modo de depuração opcional
 if [ "${DEBUG}" = "true" ]; then
     set -x
 fi
@@ -31,7 +26,6 @@ log_debug() {
 # Função para formatar números (truncando decimais e inserindo separador de milhar)
 format_number() {
     local num="${1%.*}"   # Trunca possíveis decimais
-    # Tenta usar locale en_US.UTF-8 para inserir vírgulas. Se falhar, imprime sem formatação extra.
     LC_NUMERIC=en_US.UTF-8 printf "%'d" "$num" 2>/dev/null || printf "%d" "$num"
 }
 
@@ -66,7 +60,7 @@ LC_NUMERIC=C MIN_APR_DECIMAL="$(awk "BEGIN {print $MIN_APR_24H / 100}")"
 log_debug "Filtrando pools com Liquidez >= USD $MIN_LIQUIDITY, Volume 24h >= USD $MIN_VOLUME_24H e APR 24h >= $MIN_APR_24H%..."
 
 echo "--------------------------------------------------------------------------------------------------------------"
-echo " Pool                | Liquidez (USD) | Volume 24h (USD) | APR 24h (%) | Fee 24h (USD) | Pool ID"
+echo " Pool Name          | Liquidez (USD) | Volume 24h (USD) | APR 24h (%) | Fee 24h (USD) | Pool ID"
 echo "--------------------------------------------------------------------------------------------------------------"
 
 FILTERED_POOLS="$(
@@ -79,14 +73,16 @@ FILTERED_POOLS="$(
         (.day.volume // 0) >= $min_vol and
         ((.day.apr // 0) * 100) >= $min_apr
     ) |
-    [ (.marketName // "N/A"),
-      (.tvl // 0),
-      (.day.volume // 0),
-      ((.day.apr // 0) * 100),
-      (.day.volumeFee // 0),
-      (.id // "N/A") ] |
-    join("|")' \
-       "$TEMP_FILE"
+    {
+        name: (if .marketName and .marketName != "" then .marketName else "Sem Nome" end),
+        liquidity: (.tvl // 0),
+        volume: (.day.volume // 0),
+        apr: ((.day.apr // 0) * 100),
+        fee: (.day.volumeFee // 0),
+        id: (.id // "N/A")
+    } |
+    [ .name, .liquidity, .volume, .apr, .fee, .id ] |
+    join("|")' "$TEMP_FILE"
 )"
 
 if [ -z "$FILTERED_POOLS" ]; then
@@ -98,7 +94,7 @@ fi
 log_debug "Pools filtrados encontrados. Exibindo resultados..."
 
 echo "$FILTERED_POOLS" \
-    | sort -t'|' -k2 -nr \
+    | sort -t'|' -k5 -nr \  # Ordena por Fee 24h (padrão)
     | while IFS='|' read -r name tvl volume24h apr24h fee24h pool_id; do
         tvl_formatted="$(format_number "$tvl")"
         volume24h_formatted="$(format_number "$volume24h")"
@@ -113,5 +109,4 @@ echo "$FILTERED_POOLS" \
                "$pool_id"
     done
 
-echo "--------------------------------------------------------------------------------------------------------------"
-log_debug "Script concluído em $(date)"
+echo "---------------
