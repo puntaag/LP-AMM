@@ -29,6 +29,22 @@ format_number() {
     LC_NUMERIC=en_US.UTF-8 printf "%'d" "$num" 2>/dev/null || printf "%d" "$num"
 }
 
+# Verifica se foi passado um parâmetro de ordenação
+SORT_FIELD="fee"
+if [[ $1 =~ ^sort=(liquidez|volume|apr|fee)$ ]]; then
+    SORT_FIELD="${1#sort=}"
+fi
+log_debug "Ordenando por: $SORT_FIELD"
+
+# Define a chave correta para `sort`
+case "$SORT_FIELD" in
+    liquidez) SORT_KEY=2 ;;
+    volume)   SORT_KEY=3 ;;
+    apr)      SORT_KEY=4 ;;
+    fee)      SORT_KEY=5 ;;  # Padrão
+    *)        SORT_KEY=5 ;;  # Fallback de segurança
+esac
+
 log_debug "Buscando dados da API em: $API_URL"
 if ! curl -s --fail --show-error -o "$TEMP_FILE" "$API_URL"; then
     log_debug "Erro ao buscar dados da API (curl retornou código $? )."
@@ -93,7 +109,7 @@ fi
 
 log_debug "Pools filtrados encontrados. Exibindo resultados..."
 
-echo "$FILTERED_POOLS" | sort -t'|' -k5,5nr | while IFS='|' read -r name tvl volume24h apr24h fee24h pool_id; do
+echo "$FILTERED_POOLS" | sort -t'|' -k"$SORT_KEY","$SORT_KEY"nr | while IFS='|' read -r name tvl volume24h apr24h fee24h pool_id; do
     tvl_formatted="$(format_number "$tvl")"
     volume24h_formatted="$(format_number "$volume24h")"
     fee24h_formatted="$(format_number "$fee24h")"
