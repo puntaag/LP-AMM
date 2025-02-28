@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Definição das APIs
+# Definição da API correta
 API_POOLS="https://api-v3.raydium.io/pools/info/list"
 
 # Criar arquivos temporários
@@ -12,20 +12,22 @@ log_debug() {
     echo "[DEBUG] $1" >&2
 }
 
-# Definição do campo de ordenação
-ORDER_BY="${ORDER_BY:-tvl}"  
+# Definição do campo de ordenação (se não for definido, usa "default")
+ORDER_BY="${ORDER_BY:-default}"
 SORT_TYPE="desc"
 
 # 🔍 Validação do ORDER_BY
-VALID_SORT_FIELDS=("tvl" "day.volume" "day.apr" "week.volume" "week.apr" "month.volume" "month.apr")
+VALID_SORT_FIELDS=("default" "tvl" "day.volume" "day.apr" "week.volume" "week.apr" "month.volume" "month.apr")
 if [[ ! " ${VALID_SORT_FIELDS[@]} " =~ " ${ORDER_BY} " ]]; then
-    log_debug "Parâmetro ORDER_BY inválido: ${ORDER_BY}. Usando 'tvl' como padrão."
-    ORDER_BY="tvl"
+    log_debug "Parâmetro ORDER_BY inválido: ${ORDER_BY}. Usando 'default' como padrão."
+    ORDER_BY="default"
 fi
 
-# Buscar pools da API v3
+# Buscar pools da API correta
 log_debug "Buscando pools da API v3 ordenados por $ORDER_BY ($SORT_TYPE)"
-if ! curl -s --fail --show-error -o "$TEMP_POOLS" "$API_POOLS?poolType=all&poolSortField=$ORDER_BY&sortType=$SORT_TYPE&pageSize=50&page=1"; then
+if ! curl -s --fail --show-error -o "$TEMP_POOLS" \
+    -H 'accept: application/json' \
+    "$API_POOLS?poolType=all&poolSortField=$ORDER_BY&sortType=$SORT_TYPE&pageSize=50&page=1"; then
     log_debug "Erro ao buscar pools da API v3."
     exit 1
 fi
@@ -38,15 +40,15 @@ if ! jq -e . "$TEMP_POOLS" >/dev/null 2>&1; then
     exit 1
 fi
 
-# 🔍 Ajuste para acessar os dados corretamente
-POOL_COUNT=$(jq '.data.data | length' "$TEMP_POOLS" 2>/dev/null || echo 0)
+# Ajuste correto para acessar os dados
+POOL_COUNT=$(jq '.data.count' "$TEMP_POOLS" 2>/dev/null || echo 0)
 if [[ "$POOL_COUNT" -eq 0 ]]; then
     log_debug "Nenhum pool encontrado na API."
     exit 1
 fi
 log_debug "Total de pools encontrados na API: $POOL_COUNT"
 
-# **🔍 Ajuste para acessar os campos corretamente**
+# **🔍 Ajuste correto para acessar os campos da nova API**
 FILTERED_POOLS="$(
     jq -r --argjson min_tvl 100000 \
           --argjson min_vol 1000000 \
