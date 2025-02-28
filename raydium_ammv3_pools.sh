@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Definição da API v3 da Raydium
+# Definição das APIs
 API_POOLS="https://api-v3.raydium.io/pools/info/list"
 API_TOKENS="https://api-v3.raydium.io/mint/list"
 
@@ -9,16 +9,16 @@ TEMP_POOLS="$(mktemp /tmp/raydium_v3_pools.XXXXXX)"
 TEMP_TOKENS="$(mktemp /tmp/raydium_v3_tokens.XXXXXX)"
 trap 'rm -f "$TEMP_POOLS" "$TEMP_TOKENS"' EXIT
 
-# Função de depuração
+# Função de log de depuração
 log_debug() {
     echo "[DEBUG] $1" >&2
 }
 
-# Definição do campo de ordenação e tipo
-ORDER_BY="${ORDER_BY:-fee24h}"  # Padrão: fee24h
+# Definição do campo de ordenação
+ORDER_BY="${ORDER_BY:-fee24h}"  
 SORT_TYPE="desc"
 
-# 🔍 **Verifica se ORDER_BY é válido**
+# 🔍 Verificação do ORDER_BY
 VALID_SORT_FIELDS=("liquidity" "volume24h" "fee24h" "apr24h" "volume7d" "fee7d" "apr7d" "volume30d" "fee30d" "apr30d")
 if [[ ! " ${VALID_SORT_FIELDS[@]} " =~ " ${ORDER_BY} " ]]; then
     log_debug "Parâmetro ORDER_BY inválido: ${ORDER_BY}. Usando 'fee24h' como padrão."
@@ -31,7 +31,6 @@ if ! curl -s --fail --show-error -o "$TEMP_TOKENS" "$API_TOKENS"; then
     log_debug "Erro ao buscar tokens da API v3."
     exit 1
 fi
-
 log_debug "Lista de tokens carregada com sucesso."
 
 # Buscar pools da API v3
@@ -40,41 +39,40 @@ if ! curl -s --fail --show-error -o "$TEMP_POOLS" "$API_POOLS?poolType=all&poolS
     log_debug "Erro ao buscar pools da API v3."
     exit 1
 fi
-
 log_debug "Pools carregados com sucesso."
 
-# 🔍 Verificar se o JSON retornado é válido
+# 🔍 Verificação do JSON
 if ! jq -e . "$TEMP_POOLS" >/dev/null 2>&1; then
     log_debug "Erro: A resposta da API de pools não é um JSON válido."
     cat "$TEMP_POOLS"
     exit 1
 fi
 
-# Filtragem dos pools
-log_debug "Total de pools encontrados na API: $(jq '.data | length' "$TEMP_POOLS")"
+# 🔍 Verificar se `.data` é um array ou um objeto
+POOL_COUNT=$(jq '.data | length' "$TEMP_POOLS" 2>/dev/null || echo 0)
+if [[ "$POOL_COUNT" -eq 0 ]]; then
+    log_debug "Nenhum pool encontrado na API."
+    exit 1
+fi
+log_debug "Total de pools encontrados na API: $POOL_COUNT"
 
-# Filtros
-MIN_LIQUIDITY=100000
-MIN_VOLUME_24H=1000000
-MIN_APR_24H=600
-
-# 🚀 Extração dos dados e verificação da estrutura do JSON
+# 🔍 Ajuste para acessar os dados corretamente
 FILTERED_POOLS="$(
-    jq -r --argjson min_liq "$MIN_LIQUIDITY" \
-          --argjson min_vol "$MIN_VOLUME_24H" \
-          --argjson min_apr "$MIN_APR_24H" \
-    '.data[] | select(
-        (.liquidityUSD // 0) >= $min_liq and
-        (.volume24hUSD // 0) >= $min_vol and
-        (.apr24h // 0) * 100 >= $min_apr
+    jq -r --argjson min_liq 100000 \
+          --argjson min_vol 1000000 \
+          --argjson min_apr 600 \
+    '.data | to_entries[] | select(
+        (.value.liquidityUSD // 0) >= $min_liq and
+        (.value.volume24hUSD // 0) >= $min_vol and
+        ((.value.apr24h // 0) * 100) >= $min_apr
     ) | [
-        (.marketName // "N/A"),
-        (.liquidityUSD // 0),
-        (.volume24hUSD // 0),
-        ((.apr7d // 0) * 100),   # APR 7d
-        ((.apr24h // 0) * 100),  # APR 1d
-        (.fee24hUSD // 0),
-        (.id // "N/A")
+        (.value.marketName // "N/A"),
+        (.value.liquidityUSD // 0),
+        (.value.volume24hUSD // 0),
+        ((.value.apr7d // 0) * 100), 
+        ((.value.apr24h // 0) * 100),
+        (.value.fee24hUSD // 0),
+        (.key)
     ] | join("|")' "$TEMP_POOLS"
 )"
 
