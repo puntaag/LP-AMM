@@ -48,30 +48,48 @@ SORT_TYPE="desc"
 
 # Loop para atualização contínua a cada 30 segundos
 while true; do
+    # Log dos parâmetros antes da requisição
+    log_debug "Usando parâmetros: poolSortField=$ORDER_BY, sortType=$SORT_TYPE"
+
     # Buscar pools da API v3
-    log_debug "Buscando pools da API ordenados por $ORDER_BY ($SORT_TYPE)"
+    log_debug "Buscando pools da API..."
     
     if ! curl -s -L --fail --show-error -o "$TEMP_POOLS" \
         "$API_POOLS?poolType=all&poolSortField=$ORDER_BY&sortType=$SORT_TYPE&pageSize=20&page=1"; then
-        log_debug "Erro ao buscar pools da API v3."
+        log_debug "❌ Erro ao buscar pools da API v3."
         exit 1
     fi
-    log_debug "Pools carregados com sucesso."
+
+    log_debug "✅ Dados recebidos da API."
+
+    # Log do conteúdo bruto da resposta (limita a 500 caracteres para debug)
+    log_debug "Resposta da API (primeiros 500 caracteres):"
+    head -c 500 "$TEMP_POOLS"
+    echo ""
 
     # Verificação da estrutura do JSON
-    cat "$TEMP_POOLS"  # Debug para verificar resposta
     if ! jq -e . "$TEMP_POOLS" >/dev/null 2>&1; then
-        log_debug "Erro: A resposta da API não é um JSON válido."
+        log_debug "❌ Erro: A resposta da API não é um JSON válido."
+        exit 1
+    fi
+
+    log_debug "✅ JSON validado com sucesso."
+
+    # Verificação de campos obrigatórios
+    if ! jq -e '.data' "$TEMP_POOLS" >/dev/null 2>&1 || \
+       ! jq -e '.data.data' "$TEMP_POOLS" >/dev/null 2>&1 || \
+       ! jq -e '.success' "$TEMP_POOLS" >/dev/null 2>&1; then
+        log_debug "❌ Erro: Campos obrigatórios ausentes na resposta da API."
         exit 1
     fi
 
     # Contagem de pools
     POOL_COUNT=$(jq '.data.data | length' "$TEMP_POOLS" 2>/dev/null || echo 0)
     if [[ "$POOL_COUNT" -eq 0 ]]; then
-        log_debug "Nenhum pool encontrado na API."
+        log_debug "⚠️ Nenhum pool encontrado na API."
         exit 1
     fi
-    log_debug "Total de pools encontrados na API: $POOL_COUNT"
+    log_debug "✅ Total de pools encontrados: $POOL_COUNT"
 
     # Processamento dos dados e exibição formatada
     echo "------------------------------------------------------------------------------------------------------------------------------------"
@@ -108,12 +126,12 @@ while true; do
                    "$pool_id" "$liquidity" "$volume" "$volume_1h" "$apr1d" "$apr7d" "$token_a" "$token_b"
         done
     else
-        echo "Nenhum pool encontrado com os critérios especificados."
+        log_debug "⚠️ Nenhum pool encontrado com os critérios especificados."
     fi
 
     echo "------------------------------------------------------------------------------------------------------------------------------------"
     echo "Total de pools filtrados: $POOL_COUNT"
-    log_debug "Script atualizado em $(date)"
+    log_debug "✅ Script atualizado em $(date)"
     
     # Aguarde 30 segundos antes de atualizar
     sleep 30
