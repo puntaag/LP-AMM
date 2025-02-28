@@ -28,19 +28,19 @@ read -p "Digite a opção desejada (1-10): " ORDER_OPTION
 
 # Definir o campo de ordenação com base na escolha do usuário
 case "$ORDER_OPTION" in
-    1) ORDER_BY="liquidity" ;;
-    2) ORDER_BY="volume24h" ;;
-    3) ORDER_BY="fee24h" ;;
-    4) ORDER_BY="apr24h" ;;
-    5) ORDER_BY="volume7d" ;;
-    6) ORDER_BY="fee7d" ;;
-    7) ORDER_BY="apr7d" ;;
-    8) ORDER_BY="volume30d" ;;
-    9) ORDER_BY="fee30d" ;;
-    10) ORDER_BY="apr30d" ;;
+    1) ORDER_BY="tvl" ;;
+    2) ORDER_BY="day.volume" ;;
+    3) ORDER_BY="day.volumeFee" ;;
+    4) ORDER_BY="day.apr" ;;
+    5) ORDER_BY="week.volume" ;;
+    6) ORDER_BY="week.volumeFee" ;;
+    7) ORDER_BY="week.apr" ;;
+    8) ORDER_BY="month.volume" ;;
+    9) ORDER_BY="month.volumeFee" ;;
+    10) ORDER_BY="month.apr" ;;
     *) 
-       echo "Opção inválida! Usando 'liquidity' como padrão."
-       ORDER_BY="liquidity"
+       echo "Opção inválida! Usando 'tvl' como padrão."
+       ORDER_BY="tvl"
     ;;
 esac
 
@@ -51,7 +51,7 @@ while true; do
     # Buscar pools da API v3
     log_debug "Buscando pools da API ordenados por $ORDER_BY ($SORT_TYPE)"
     
-    if ! curl -s --fail --show-error -o "$TEMP_POOLS" "$API_POOLS?poolType=all&poolSortField=$ORDER_BY&sortType=$SORT_TYPE&pageSize=20&page=1"; then
+    if ! curl -s --fail --show-error -o "$TEMP_POOLS" "$API_POOLS"; then
         log_debug "Erro ao buscar pools da API v3."
         exit 1
     fi
@@ -81,10 +81,10 @@ while true; do
         jq -r '
             .data.data | map([
                 (.id // "N/A"),
-                (.liquidity // 0) | tostring,
-                (.volume24h // 0) | tostring,
-                (.apr24h // 0) | tostring,
-                (.apr7d // 0) | tostring,
+                (.tvl // 0) | tostring,
+                (.day.volume // 0) | tostring,
+                (.day.apr // 0) | tostring,
+                (.week.apr // 0) | tostring,
                 (.mintA.symbol // "N/A"),
                 (.mintB.symbol // "N/A")
             ] | join("|")) | .[]
