@@ -28,19 +28,19 @@ read -p "Digite a opção desejada (1-10): " ORDER_OPTION
 
 # Definir o campo de ordenação com base na escolha do usuário
 case "$ORDER_OPTION" in
-    1) ORDER_BY="tvl" ;;
-    2) ORDER_BY="day.volume" ;;
-    3) ORDER_BY="day.volumeFee" ;;
-    4) ORDER_BY="day.apr" ;;
-    5) ORDER_BY="week.volume" ;;
-    6) ORDER_BY="week.volumeFee" ;;
-    7) ORDER_BY="week.apr" ;;
-    8) ORDER_BY="month.volume" ;;
-    9) ORDER_BY="month.volumeFee" ;;
-    10) ORDER_BY="month.apr" ;;
+    1) ORDER_BY="liquidity" ;;
+    2) ORDER_BY="volume24h" ;;
+    3) ORDER_BY="fee24h" ;;
+    4) ORDER_BY="apr24h" ;;
+    5) ORDER_BY="volume7d" ;;
+    6) ORDER_BY="fee7d" ;;
+    7) ORDER_BY="apr7d" ;;
+    8) ORDER_BY="volume30d" ;;
+    9) ORDER_BY="fee30d" ;;
+    10) ORDER_BY="apr30d" ;;
     *) 
-       echo "Opção inválida! Usando 'tvl' como padrão."
-       ORDER_BY="tvl"
+       echo "Opção inválida! Usando 'liquidity' como padrão."
+       ORDER_BY="liquidity"
     ;;
 esac
 
