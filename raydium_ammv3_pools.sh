@@ -93,15 +93,20 @@ while true; do
 
     if [ -n "$FILTERED_POOLS" ]; then
         echo "$FILTERED_POOLS" | while IFS='|' read -r pool_id liquidity volume apr1d apr7d token_a token_b; do
-            # Simulação do Volume Última Hora como 1/24 do volume 24h
-            volume_1h=$(echo "$volume / 24" | bc -l)
-            
-            printf "%-35s | %15.2f | %15.2f | %20.2f | %10.2f | %10.2f | %7s | %7s\n" \
-                   "$pool_id" "$(echo "$liquidity" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
-                   "$(echo "$volume" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
-                   "$(echo "$volume_1h" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
-                   "$(echo "$apr1d" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
-                   "$(echo "$apr7d" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
+            # Evitar cálculo inválido se volume24h for 0
+            if (( $(echo "$volume == 0" | bc -l) )); then
+                volume_1h=0
+            else
+                volume_1h=$(echo "$volume / 24" | bc -l)
+            fi
+
+            # Formatar corretamente os números para evitar erro de printf
+            printf "%-35s | %15s | %15s | %20s | %10s | %10s | %7s | %7s\n" \
+                   "$pool_id" "$(printf "%.2f" "$liquidity")" \
+                   "$(printf "%.2f" "$volume")" \
+                   "$(printf "%.2f" "$volume_1h")" \
+                   "$(printf "%.2f" "$apr1d")" \
+                   "$(printf "%.2f" "$apr7d")" \
                    "$token_a" "$token_b"
         done
     else
