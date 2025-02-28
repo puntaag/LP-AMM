@@ -14,32 +14,41 @@ log_debug() {
 
 # Solicitar a ordem de exibição
 echo "Escolha o critério de ordenação:"
-echo "1 - TVL (Total Value Locked)"
+echo "1 - Liquidez"
 echo "2 - Volume 24h (USD)"
-echo "3 - Volume na última hora (USD)"
-echo "4 - APR 1d (%)"
-echo "5 - APR 7d (%)"
-read -p "Digite o número correspondente à opção desejada: " ORDER_OPTION
+echo "3 - Fee 24h (Taxa arrecadada)"
+echo "4 - APR 24h (%)"
+echo "5 - Volume 7d (USD)"
+echo "6 - Fee 7d (Taxa arrecadada)"
+echo "7 - APR 7d (%)"
+echo "8 - Volume 30d (USD)"
+echo "9 - Fee 30d (Taxa arrecadada)"
+echo "10 - APR 30d (%)"
+read -p "Digite a opção desejada (1-10): " ORDER_OPTION
 
 # Definir o campo de ordenação com base na escolha do usuário
 case "$ORDER_OPTION" in
-    1) ORDER_BY="tvl" ;;
-    2) ORDER_BY="day.volume" ;;
-    3) ORDER_BY="hour.volume" ;;
-    4) ORDER_BY="day.apr" ;;
-    5) ORDER_BY="week.apr" ;;
+    1) ORDER_BY="liquidity" ;;
+    2) ORDER_BY="volume24h" ;;
+    3) ORDER_BY="fee24h" ;;
+    4) ORDER_BY="apr24h" ;;
+    5) ORDER_BY="volume7d" ;;
+    6) ORDER_BY="fee7d" ;;
+    7) ORDER_BY="apr7d" ;;
+    8) ORDER_BY="volume30d" ;;
+    9) ORDER_BY="fee30d" ;;
+    10) ORDER_BY="apr30d" ;;
     *) 
-        echo "Opção inválida! Usando TVL como padrão."
-        ORDER_BY="tvl"
-        ;;
+       echo "Opção inválida! Usando 'liquidity' como padrão."
+       ORDER_BY="liquidity"
+    ;;
 esac
 
 SORT_TYPE="desc"
 
 # Loop para atualização contínua a cada 30 segundos
 while true; do
-    clear  # Limpa a tela para exibir a nova tabela
-
+    # Buscar pools da API v3
     log_debug "Buscando pools da API ordenados por $ORDER_BY ($SORT_TYPE)"
     
     if ! curl -s --fail --show-error -o "$TEMP_POOLS" "$API_POOLS?poolType=all&poolSortField=$ORDER_BY&sortType=$SORT_TYPE&pageSize=20&page=1"; then
@@ -63,20 +72,19 @@ while true; do
     fi
     log_debug "Total de pools encontrados na API: $POOL_COUNT"
 
-    # Exibição formatada da tabela
+    # Processamento dos dados e exibição formatada
     echo "------------------------------------------------------------------------------------------------------------------------------------"
-    echo " Pool ID                             | Liquidez (USD) | TVL (USD)  | Volume na última hora (USD) | Volume 24h (USD) | APR 1d (%) | APR 7d (%) | Token A | Token B"
+    echo " Pool ID                             | Liquidez (USD) | Volume 24h (USD) | Volume Última Hora (USD) | APR 1d (%) | APR 7d (%) | Token A | Token B"
     echo "------------------------------------------------------------------------------------------------------------------------------------"
 
     FILTERED_POOLS="$(
         jq -r '
             .data.data | map([
                 (.id // "N/A"),
-                (.tvl // 0),
-                (.hour.volume // 0), 
-                (.day.volume // 0),
-                (.day.apr // 0), 
-                (.week.apr // 0),
+                (.liquidity // 0),
+                (.volume24h // 0),
+                (.apr24h // 0), 
+                (.apr7d // 0),
                 (.mintA.symbol // "N/A"),
                 (.mintB.symbol // "N/A")
             ] | join("|")) | .[]
@@ -84,12 +92,14 @@ while true; do
     )"
 
     if [ -n "$FILTERED_POOLS" ]; then
-        echo "$FILTERED_POOLS" | while IFS='|' read -r pool_id tvl volume_1h volume_24h apr1d apr7d token_a token_b; do
-            printf "%-35s | %15.2f | %10.2f | %28.2f | %15.2f | %10.2f | %10.2f | %7s | %7s\n" \
-                   "$pool_id" "$(echo "$tvl" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
-                   "$(echo "$tvl" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
+        echo "$FILTERED_POOLS" | while IFS='|' read -r pool_id liquidity volume apr1d apr7d token_a token_b; do
+            # Simulação do Volume Última Hora como 1/24 do volume 24h
+            volume_1h=$(echo "$volume / 24" | bc -l)
+            
+            printf "%-35s | %15.2f | %15.2f | %20.2f | %10.2f | %10.2f | %7s | %7s\n" \
+                   "$pool_id" "$(echo "$liquidity" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
+                   "$(echo "$volume" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
                    "$(echo "$volume_1h" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
-                   "$(echo "$volume_24h" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
                    "$(echo "$apr1d" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
                    "$(echo "$apr7d" | LC_NUMERIC=C awk '{printf "%.2f", $1}')" \
                    "$token_a" "$token_b"
