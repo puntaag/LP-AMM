@@ -87,10 +87,12 @@ FILTERED_POOLS="$(
     select(
         (.tvl // 0) >= $min_liq and
         (.day.volume // 0) >= $min_vol and
-        ((.day.apr // 0) * 100) >= $min_apr
+        (.day.apr // 0) >= $min_apr
     ) |
     {
-        name: (if .marketName and .marketName != "" then .marketName else "Sem Nome" end),
+        name: (if .marketName and .marketName != "" then .marketName 
+               elif .name and .name != "" then .name 
+               else .lpMint end),
         liquidity: (.tvl // 0),
         volume: (.day.volume // 0),
         apr: ((.day.apr // 0) * 100),
