@@ -61,10 +61,11 @@ FILTERED_POOLS="$(
         )
     ) | map([
         (.id // "N/A"),
-        (.tvl // 0),
-        (.day.volume // 0),
-        (.day.apr // 0), 
-        (.week.apr // 0),
+        (.tvl // 0 | tostring),
+        (.day.volume // 0 | tostring),
+        (.day.apr // 0 | tostring), 
+        (.week.apr // 0 | tostring),
+        (.day.volumeQuote // 0 | tostring),
         (.mintA.symbol // "N/A"),
         (.mintB.symbol // "N/A")
     ] | join("|")) | .[]' "$TEMP_POOLS"
@@ -75,19 +76,19 @@ TOTAL_FILTERED=$(echo "$FILTERED_POOLS" | wc -l)
 log_debug "Total de pools filtrados: $TOTAL_FILTERED"
 
 # Exibir resultados formatados
-echo "---------------------------------------------------------------------------------------------------------------"
-echo " Pool ID                             | Liquidez (USD) | Volume 24h (USD) | APR 1d (%) | APR 7d (%) | Token A | Token B"
-echo "---------------------------------------------------------------------------------------------------------------"
+echo "------------------------------------------------------------------------------------------------------------------------------------"
+echo " Pool ID                             | Liquidez (USD) | Volume 24h (USD) | Volume 1h (USD) | APR 1d (%) | APR 7d (%) | Token A | Token B"
+echo "------------------------------------------------------------------------------------------------------------------------------------"
 
 if [ -n "$FILTERED_POOLS" ]; then
-    echo "$FILTERED_POOLS" | while IFS='|' read -r pool_id tvl volume apr1d apr7d token_a token_b; do
-        printf "%-35s | %15s | %15s | %10s | %10s | %7s | %7s\n" \
-               "$pool_id" "$tvl" "$volume" "$apr1d" "$apr7d" "$token_a" "$token_b"
+    echo "$FILTERED_POOLS" | while IFS='|' read -r pool_id tvl volume volume_1h apr1d apr7d token_a token_b; do
+        printf "%-35s | %15.2f | %15.2f | %15.2f | %10.2f | %10.2f | %7s | %7s\n" \
+               "$pool_id" "$tvl" "$volume" "$volume_1h" "$apr1d" "$apr7d" "$token_a" "$token_b"
     done
 else
     echo "Nenhum pool encontrado com os critérios especificados."
 fi
 
-echo "---------------------------------------------------------------------------------------------------------------"
+echo "------------------------------------------------------------------------------------------------------------------------------------"
 echo "Total de pools filtrados: $TOTAL_FILTERED"
 log_debug "Script concluído em $(date)"
