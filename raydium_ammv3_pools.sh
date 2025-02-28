@@ -51,16 +51,17 @@ while true; do
     # Buscar pools da API v3
     log_debug "Buscando pools da API ordenados por $ORDER_BY ($SORT_TYPE)"
     
-    if ! curl -s --fail --show-error -o "$TEMP_POOLS" "$API_POOLS"; then
+    if ! curl -s -L --fail --show-error -o "$TEMP_POOLS" \
+        "$API_POOLS?poolType=all&poolSortField=$ORDER_BY&sortType=$SORT_TYPE&pageSize=20&page=1"; then
         log_debug "Erro ao buscar pools da API v3."
         exit 1
     fi
     log_debug "Pools carregados com sucesso."
 
     # Verificação da estrutura do JSON
+    cat "$TEMP_POOLS"  # Debug para verificar resposta
     if ! jq -e . "$TEMP_POOLS" >/dev/null 2>&1; then
-        log_debug "Erro: A resposta da API de pools não é um JSON válido."
-        cat "$TEMP_POOLS"
+        log_debug "Erro: A resposta da API não é um JSON válido."
         exit 1
     fi
 
@@ -78,17 +79,17 @@ while true; do
     echo "------------------------------------------------------------------------------------------------------------------------------------"
 
     FILTERED_POOLS="$(
-        jq -r '
-            .data.data | map([
-                (.id // "N/A"),
-                (.tvl // 0) | tostring,
-                (.day.volume // 0) | tostring,
-                (.day.apr // 0) | tostring,
-                (.week.apr // 0) | tostring,
-                (.mintA.symbol // "N/A"),
-                (.mintB.symbol // "N/A")
-            ] | join("|")) | .[]
-        ' "$TEMP_POOLS"
+    jq -r '
+        .data.data | map([
+            (.id // "N/A"),
+            (.tvl // 0) | tostring,
+            (.day.volume // 0) | tostring,
+            (.day.apr // 0) | tostring,
+            (.week.apr // 0) | tostring,
+            (.mintA.symbol // "N/A"),
+            (.mintB.symbol // "N/A")
+        ] | join("|")) | .[]
+    ' "$TEMP_POOLS"
     )"
 
     if [ -n "$FILTERED_POOLS" ]; then
