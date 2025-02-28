@@ -5,7 +5,7 @@ API_POOLS="https://api-v3.raydium.io/pools/info/list"
 
 # Criar arquivos temporários
 TEMP_POOLS="$(mktemp /tmp/raydium_v3_pools.XXXXXX)"
-trap 'rm -f "$TEMP_POOLS"' EXIT
+# trap 'rm -f "$TEMP_POOLS"' EXIT  # Desativar remoção automática para debug
 
 # Função de log de depuração
 log_debug() {
@@ -81,10 +81,10 @@ while true; do
         jq -r '
             .data.data | map([
                 (.id // "N/A"),
-                (.liquidity // 0),
-                (.volume24h // 0),
-                (.apr24h // 0), 
-                (.apr7d // 0),
+                (.liquidity // 0) | tostring,
+                (.volume24h // 0) | tostring,
+                (.apr24h // 0) | tostring,
+                (.apr7d // 0) | tostring,
                 (.mintA.symbol // "N/A"),
                 (.mintB.symbol // "N/A")
             ] | join("|")) | .[]
@@ -93,21 +93,18 @@ while true; do
 
     if [ -n "$FILTERED_POOLS" ]; then
         echo "$FILTERED_POOLS" | while IFS='|' read -r pool_id liquidity volume apr1d apr7d token_a token_b; do
-            # Evitar cálculo inválido se volume24h for 0
-            if (( $(echo "$volume == 0" | bc -l) )); then
-                volume_1h=0
-            else
-                volume_1h=$(echo "$volume / 24" | bc -l)
-            fi
+            # Garantir que valores vazios sejam convertidos para zero
+            liquidity=$(echo "$liquidity" | awk '{ if ($0 == "") print "0"; else print $0 }')
+            volume=$(echo "$volume" | awk '{ if ($0 == "") print "0"; else print $0 }')
+            apr1d=$(echo "$apr1d" | awk '{ if ($0 == "") print "0"; else print $0 }')
+            apr7d=$(echo "$apr7d" | awk '{ if ($0 == "") print "0"; else print $0 }')
+
+            # Calcular Volume da Última Hora
+            volume_1h=$(awk "BEGIN {print $volume / 24}")
 
             # Formatar corretamente os números para evitar erro de printf
-            printf "%-35s | %15s | %15s | %20s | %10s | %10s | %7s | %7s\n" \
-                   "$pool_id" "$(printf "%.2f" "$liquidity")" \
-                   "$(printf "%.2f" "$volume")" \
-                   "$(printf "%.2f" "$volume_1h")" \
-                   "$(printf "%.2f" "$apr1d")" \
-                   "$(printf "%.2f" "$apr7d")" \
-                   "$token_a" "$token_b"
+            printf "%-35s | %15.2f | %15.2f | %20.2f | %10.2f | %10.2f | %7s | %7s\n" \
+                   "$pool_id" "$liquidity" "$volume" "$volume_1h" "$apr1d" "$apr7d" "$token_a" "$token_b"
         done
     else
         echo "Nenhum pool encontrado com os critérios especificados."
